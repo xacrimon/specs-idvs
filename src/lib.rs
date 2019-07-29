@@ -16,9 +16,14 @@ impl<T> InterleavedGroup<T> {
     }
 }
 
-#[derive(Default)]
 pub struct IDVStorage<T> {
     inner: Vec<InterleavedGroup<T>>,
+}
+
+impl<T> Default for IDVStorage<T> {
+    fn default() -> Self {
+        IDVStorage { inner: Vec::new() }
+    }
 }
 
 impl<T> IDVStorage<T> {
