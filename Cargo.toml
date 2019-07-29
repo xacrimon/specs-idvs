@@ -1,0 +1,9 @@
+[package]
+name = "specs-idvs"
+version = "0.1.0"
+authors = ["Acrimon <joel.wejdenstal@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+specs = "0.14.2"
+hibitset = "0.5.3"
