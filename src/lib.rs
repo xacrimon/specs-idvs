@@ -102,7 +102,7 @@ impl<T> IDVStorage<T> {
     }
 }
 
-impl<T: Default> UnprotectedStorage<T> for IDVStorage<T> {
+impl<T> UnprotectedStorage<T> for IDVStorage<T> {
     #[inline]
     unsafe fn clean<B>(&mut self, has: B)
     where
