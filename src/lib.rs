@@ -30,14 +30,18 @@ impl<T> Default for IDVStorage<T> {
 
 impl<T> IDVStorage<T> {
     #[inline]
-    fn resolve_to_internal(&self, idx: usize) -> u16 {
+    unsafe fn resolve_to_internal(&self, idx: usize) -> u16 {
         let group_idx = idx / SPARSE_RATIO;
         let group_sub = idx % SPARSE_RATIO;
-        self.inner[group_idx].redirects[group_sub]
+        *self
+            .inner
+            .get_unchecked(group_idx)
+            .redirects
+            .get_unchecked(group_sub)
     }
 
     #[inline]
-    fn check_prefill(&mut self, idx_cap: usize) {
+    unsafe fn check_prefill(&mut self, idx_cap: usize) {
         while self.inner.len() / SPARSE_RATIO < idx_cap {
             self.inner.push(InterleavedGroup::blank());
         }
@@ -55,31 +59,38 @@ impl<T> IDVStorage<T> {
     }
 
     #[inline]
-    fn c_insert(&mut self, idx: usize, v: T) {
+    unsafe fn c_insert(&mut self, idx: usize, v: T) {
         self.check_prefill(idx);
         let group_idx = idx / SPARSE_RATIO;
         let group_sub = idx % SPARSE_RATIO;
         let internal_point = self.find_free();
-        self.inner[group_idx].redirects[group_sub] = internal_point as u16;
-        self.inner[internal_point].data = Some(v);
+        *self
+            .inner
+            .get_unchecked_mut(group_idx)
+            .redirects
+            .get_unchecked_mut(group_sub) = internal_point as u16;
+        self.inner.get_unchecked_mut(internal_point).data = Some(v);
     }
 
     #[inline]
-    fn c_get(&self, idx: usize) -> Option<&T> {
+    unsafe fn c_get(&self, idx: usize) -> Option<&T> {
         let internal = self.resolve_to_internal(idx);
-        self.inner[internal as usize].data.as_ref()
+        self.inner.get_unchecked(internal as usize).data.as_ref()
     }
 
     #[inline]
-    fn c_get_mut(&mut self, idx: usize) -> Option<&mut T> {
+    unsafe fn c_get_mut(&mut self, idx: usize) -> Option<&mut T> {
         let internal = self.resolve_to_internal(idx);
-        self.inner[internal as usize].data.as_mut()
+        self.inner
+            .get_unchecked_mut(internal as usize)
+            .data
+            .as_mut()
     }
 
     #[inline]
-    fn c_remove(&mut self, idx: usize) -> Option<T> {
+    unsafe fn c_remove(&mut self, idx: usize) -> Option<T> {
         let internal = self.resolve_to_internal(idx);
-        self.inner[internal as usize].data.take()
+        self.inner.get_unchecked_mut(internal as usize).data.take()
     }
 
     #[inline]
