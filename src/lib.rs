@@ -1,5 +1,6 @@
 use hibitset::BitSetLike;
-use std::ptr;
+use specs::storage::{DistinctStorage, UnprotectedStorage};
+use specs::world::Index;
 
 struct InterleavedGroup<T> {
     redirects: [u16; 4],
@@ -43,7 +44,7 @@ impl<T> IDVStorage<T> {
         self.inner.len() - 1
     }
 
-    fn insert(&mut self, idx: usize, v: T) {
+    fn c_insert(&mut self, idx: usize, v: T) {
         self.check_prefill(idx);
         let group_idx = idx / 4;
         let group_sub = idx % 4;
@@ -52,33 +53,29 @@ impl<T> IDVStorage<T> {
         self.inner[internal_point].data = Some(v);
     }
 
-    fn get(&self, idx: usize) -> Option<&T> {
+    fn c_get(&self, idx: usize) -> Option<&T> {
         let internal = self.resolve_to_internal(idx);
-        self.inner[idx].data.as_ref()
+        self.inner[internal as usize].data.as_ref()
     }
 
-    fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
+    fn c_get_mut(&mut self, idx: usize) -> Option<&mut T> {
         let internal = self.resolve_to_internal(idx);
-        self.inner[idx].data.as_mut()
+        self.inner[internal as usize].data.as_mut()
     }
 
-    fn remove(&mut self, idx: usize) -> Option<T> {
+    fn c_remove(&mut self, idx: usize) -> Option<T> {
         let internal = self.resolve_to_internal(idx);
-        self.inner[idx].data.take()
+        self.inner[internal as usize].data.take()
     }
 
-    fn drop(&mut self, idx: usize) {
-        self.remove(idx);
-    }
-
-    unsafe fn clean<B>(&mut self, has: B)
+    unsafe fn c_clean<B>(&mut self, has: B)
     where
-        B: BitSetLike
+        B: BitSetLike,
     {
         let mut garbage = Vec::new();
 
         for (i, e) in self.inner.iter_mut().enumerate() {
-            for j in (0..4) {
+            for j in 0..4 {
                 if has.contains((i * j) as u32) {
                     let real = e.redirects[j];
                     garbage.push(real);
@@ -91,3 +88,30 @@ impl<T> IDVStorage<T> {
         }
     }
 }
+
+impl<T: Default> UnprotectedStorage<T> for IDVStorage<T> {
+    unsafe fn clean<B>(&mut self, has: B)
+    where
+        B: BitSetLike,
+    {
+        self.c_clean(has);
+    }
+
+    unsafe fn get(&self, idx: Index) -> &T {
+        self.c_get(idx as usize).unwrap()
+    }
+
+    unsafe fn get_mut(&mut self, idx: Index) -> &mut T {
+        self.c_get_mut(idx as usize).unwrap()
+    }
+
+    unsafe fn insert(&mut self, idx: Index, v: T) {
+        self.c_insert(idx as usize, v);
+    }
+
+    unsafe fn remove(&mut self, idx: Index) -> T {
+        self.c_remove(idx as usize).unwrap()
+    }
+}
+
+unsafe impl<T> DistinctStorage for IDVStorage<T> {}
