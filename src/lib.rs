@@ -2,15 +2,17 @@ use hibitset::BitSetLike;
 use specs::storage::{DistinctStorage, UnprotectedStorage};
 use specs::world::Index;
 
+const SPARSE_RATIO: usize = 4;
+
 struct InterleavedGroup<T> {
-    redirects: [u16; 4],
+    redirects: [u16; SPARSE_RATIO],
     data: Option<T>,
 }
 
 impl<T> InterleavedGroup<T> {
     const fn blank() -> Self {
         Self {
-            redirects: [0; 4],
+            redirects: [0; SPARSE_RATIO],
             data: None,
         }
     }
@@ -29,14 +31,14 @@ impl<T> Default for IDVStorage<T> {
 impl<T> IDVStorage<T> {
     #[inline]
     fn resolve_to_internal(&self, idx: usize) -> u16 {
-        let group_idx = idx / 4;
-        let group_sub = idx % 4;
+        let group_idx = idx / SPARSE_RATIO;
+        let group_sub = idx % SPARSE_RATIO;
         self.inner[group_idx].redirects[group_sub]
     }
 
     #[inline]
     fn check_prefill(&mut self, idx_cap: usize) {
-        while self.inner.len() / 4 < idx_cap {
+        while self.inner.len() / SPARSE_RATIO < idx_cap {
             self.inner.push(InterleavedGroup::blank());
         }
     }
@@ -55,8 +57,8 @@ impl<T> IDVStorage<T> {
     #[inline]
     fn c_insert(&mut self, idx: usize, v: T) {
         self.check_prefill(idx);
-        let group_idx = idx / 4;
-        let group_sub = idx % 4;
+        let group_idx = idx / SPARSE_RATIO;
+        let group_sub = idx % SPARSE_RATIO;
         let internal_point = self.find_free();
         self.inner[group_idx].redirects[group_sub] = internal_point as u16;
         self.inner[internal_point].data = Some(v);
@@ -88,7 +90,7 @@ impl<T> IDVStorage<T> {
         let mut garbage = Vec::new();
 
         for (i, e) in self.inner.iter_mut().enumerate() {
-            for j in 0..4 {
+            for j in 0..SPARSE_RATIO {
                 if has.contains((i * j) as u32) {
                     let real = e.redirects[j];
                     garbage.push(real);
