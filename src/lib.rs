@@ -8,7 +8,7 @@ struct InterleavedGroup<T> {
 }
 
 impl<T> InterleavedGroup<T> {
-    fn blank() -> Self {
+    const fn blank() -> Self {
         Self {
             redirects: [0; 4],
             data: None,
@@ -22,18 +22,21 @@ pub struct IDVStorage<T> {
 }
 
 impl<T> IDVStorage<T> {
+    #[inline]
     fn resolve_to_internal(&self, idx: usize) -> u16 {
         let group_idx = idx / 4;
         let group_sub = idx % 4;
         self.inner[group_idx].redirects[group_sub]
     }
 
+    #[inline]
     fn check_prefill(&mut self, idx_cap: usize) {
         while self.inner.len() / 4 < idx_cap {
             self.inner.push(InterleavedGroup::blank());
         }
     }
 
+    #[inline]
     fn find_free(&mut self) -> usize {
         for (i, e) in self.inner.iter().enumerate() {
             if let None = e.data {
@@ -44,6 +47,7 @@ impl<T> IDVStorage<T> {
         self.inner.len() - 1
     }
 
+    #[inline]
     fn c_insert(&mut self, idx: usize, v: T) {
         self.check_prefill(idx);
         let group_idx = idx / 4;
@@ -53,21 +57,25 @@ impl<T> IDVStorage<T> {
         self.inner[internal_point].data = Some(v);
     }
 
+    #[inline]
     fn c_get(&self, idx: usize) -> Option<&T> {
         let internal = self.resolve_to_internal(idx);
         self.inner[internal as usize].data.as_ref()
     }
 
+    #[inline]
     fn c_get_mut(&mut self, idx: usize) -> Option<&mut T> {
         let internal = self.resolve_to_internal(idx);
         self.inner[internal as usize].data.as_mut()
     }
 
+    #[inline]
     fn c_remove(&mut self, idx: usize) -> Option<T> {
         let internal = self.resolve_to_internal(idx);
         self.inner[internal as usize].data.take()
     }
 
+    #[inline]
     unsafe fn c_clean<B>(&mut self, has: B)
     where
         B: BitSetLike,
@@ -90,6 +98,7 @@ impl<T> IDVStorage<T> {
 }
 
 impl<T: Default> UnprotectedStorage<T> for IDVStorage<T> {
+    #[inline]
     unsafe fn clean<B>(&mut self, has: B)
     where
         B: BitSetLike,
@@ -97,18 +106,22 @@ impl<T: Default> UnprotectedStorage<T> for IDVStorage<T> {
         self.c_clean(has);
     }
 
+    #[inline]
     unsafe fn get(&self, idx: Index) -> &T {
         self.c_get(idx as usize).unwrap()
     }
 
+    #[inline]
     unsafe fn get_mut(&mut self, idx: Index) -> &mut T {
         self.c_get_mut(idx as usize).unwrap()
     }
 
+    #[inline]
     unsafe fn insert(&mut self, idx: Index, v: T) {
         self.c_insert(idx as usize, v);
     }
 
+    #[inline]
     unsafe fn remove(&mut self, idx: Index) -> T {
         self.c_remove(idx as usize).unwrap()
     }
