@@ -47,11 +47,12 @@ impl<T> IDVStorage<T> {
 
     #[inline]
     unsafe fn check_prefill(&mut self, idx_cap: usize) {
-        let additional = idx_cap.saturating_sub(self.inner.len() / SPARSE_RATIO);
-        debug_assert!(additional < std::isize::MAX as usize);
-        self.inner.reserve(additional);
-        while self.inner.len() / SPARSE_RATIO < idx_cap {
-            self.inner.push(InterleavedGroup::blank());
+        if idx_cap / SPARSE_RATIO > self.inner.len() {
+            let grow_to = (1_usize..)
+                .map(|i| i.next_power_of_two())
+                .find(|i| *i > idx_cap / SPARSE_RATIO)
+                .unwrap();
+            self.inner.resize_with(grow_to, InterleavedGroup::blank);
         }
     }
 
@@ -62,10 +63,9 @@ impl<T> IDVStorage<T> {
 
         // Loop around once, searching for an open slot.
         while i != start + 1 {
-            if i == self.inner.len() - 1 {
-                i = 0;
-            }
+            i = i & (self.inner.len() - 1);
 
+            debug_assert!(self.inner.len() > i);
             let e = self.inner.get_unchecked(i);
             if e.data.is_none() {
                 self.next_free_slot = i;
@@ -75,11 +75,9 @@ impl<T> IDVStorage<T> {
             i += 1;
         }
 
-        // Did not find a open slot. Expanding.
-        self.inner.push(InterleavedGroup::blank());
-        self.inner.push(InterleavedGroup::blank());
+        self.check_prefill(self.inner.len() * SPARSE_RATIO);
         self.next_free_slot = self.inner.len() - 1;
-        self.next_free_slot
+        self.find_free()
     }
 
     #[inline]
