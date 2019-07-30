@@ -61,7 +61,7 @@ impl<T> IDVStorage<T> {
         let mut i = start;
 
         // Loop around once, searching for an open slot.
-        while i != start.overflowing_add(1); {
+        while i != start.wrapping_add(1) {
             if i == self.inner.len() - 1 {
                 i = 0;
             }
@@ -72,7 +72,7 @@ impl<T> IDVStorage<T> {
                 return i;
             }
 
-            i.overflowing_add(1);
+            i = i.wrapping_add(1);
         }
 
         // Did not find a open slot. Expanding.
