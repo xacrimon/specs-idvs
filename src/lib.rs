@@ -58,11 +58,12 @@ impl<T> IDVStorage<T> {
 
     #[inline]
     unsafe fn find_free(&mut self) -> usize {
-        let start = self.next_free_slot - 1;
+        let start = self.next_free_slot;
         let mut i = start;
+        let mut first = true;
 
         // Loop around once, searching for an open slot.
-        while i != start + 1 {
+        while i != start + 1 || first {
             i = i & (self.inner.len() - 1);
 
             debug_assert!(self.inner.len() > i);
@@ -73,6 +74,7 @@ impl<T> IDVStorage<T> {
             }
 
             i += 1;
+            first = false;
         }
 
         self.check_prefill(self.inner.len() * SPARSE_RATIO);
