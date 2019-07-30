@@ -77,6 +77,7 @@ impl<T> IDVStorage<T> {
 
         // Did not find a open slot. Expanding.
         self.inner.push(InterleavedGroup::blank());
+        self.inner.push(InterleavedGroup::blank());
         self.next_free_slot = self.inner.len() - 1;
         self.next_free_slot
     }
