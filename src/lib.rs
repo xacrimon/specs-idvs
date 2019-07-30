@@ -37,6 +37,7 @@ impl<T> IDVStorage<T> {
     unsafe fn resolve_to_internal(&self, idx: usize) -> u16 {
         let group_idx = idx / SPARSE_RATIO;
         let group_sub = idx % SPARSE_RATIO;
+        debug_assert!(self.inner.len() > group_idx);
         *self
             .inner
             .get_unchecked(group_idx)
@@ -47,6 +48,7 @@ impl<T> IDVStorage<T> {
     #[inline]
     unsafe fn check_prefill(&mut self, idx_cap: usize) {
         let additional = idx_cap.saturating_sub(self.inner.len() / SPARSE_RATIO);
+        debug_assert!(additional < std::isize::MAX as usize);
         self.inner.reserve(additional);
         while self.inner.len() / SPARSE_RATIO < idx_cap {
             self.inner.push(InterleavedGroup::blank());
@@ -55,15 +57,25 @@ impl<T> IDVStorage<T> {
 
     #[inline]
     unsafe fn find_free(&mut self) -> usize {
-        let mut i = 0;
-        while i < self.inner.len() {
+        let start = self.next_free_slot - 1;
+        let mut i = start;
+
+        // Loop around once, searching for an open slot.
+        while i != start + 1 {
+            if i == self.inner.len() - 1 {
+                i = 0;
+            }
+
             let e = self.inner.get_unchecked(i);
-            if let None = e.data {
+            if e.data.is_none() {
                 self.next_free_slot = i;
                 return i;
             }
+
             i += 1;
         }
+
+        // Did not find a open slot. Expanding.
         self.inner.push(InterleavedGroup::blank());
         self.next_free_slot = self.inner.len() - 1;
         self.next_free_slot
@@ -75,6 +87,8 @@ impl<T> IDVStorage<T> {
         let group_idx = idx / SPARSE_RATIO;
         let group_sub = idx % SPARSE_RATIO;
         let internal_point = self.find_free();
+        debug_assert!(internal_point < self.inner.len());
+        debug_assert!(group_idx < self.inner.len());
         *self
             .inner
             .get_unchecked_mut(group_idx)
@@ -86,12 +100,14 @@ impl<T> IDVStorage<T> {
     #[inline]
     unsafe fn c_get(&self, idx: usize) -> Option<&T> {
         let internal = self.resolve_to_internal(idx);
+        debug_assert!((internal as usize) < self.inner.len());
         self.inner.get_unchecked(internal as usize).data.as_ref()
     }
 
     #[inline]
     unsafe fn c_get_mut(&mut self, idx: usize) -> Option<&mut T> {
         let internal = self.resolve_to_internal(idx);
+        debug_assert!((internal as usize) < self.inner.len());
         self.inner
             .get_unchecked_mut(internal as usize)
             .data
@@ -101,6 +117,7 @@ impl<T> IDVStorage<T> {
     #[inline]
     unsafe fn c_remove(&mut self, idx: usize) -> Option<T> {
         let internal = self.resolve_to_internal(idx);
+        debug_assert!((internal as usize) < self.inner.len());
         self.inner.get_unchecked_mut(internal as usize).data.take()
     }
 
