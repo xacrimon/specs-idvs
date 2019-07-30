@@ -66,7 +66,7 @@ impl<T> IDVStorage<T> {
         while i != start + 1 || first {
             i = i & (self.inner.len() - 1);
 
-            debug_assert!(self.inner.len() > i);
+            debug_assert!(self.inner.len() >= i);
             let e = self.inner.get_unchecked(i);
             if e.data.is_none() {
                 self.next_free_slot = i;
