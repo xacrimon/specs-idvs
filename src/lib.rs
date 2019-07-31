@@ -46,7 +46,7 @@ impl<T> IDVStorage<T> {
 
     #[inline]
     unsafe fn check_prefill(&mut self, idx_cap: usize) {
-        let additional = idx_cap.saturating_div(SPARSE_RATIO).saturating_sub(self.inner.len());
+        let additional = (idx_cap / SPARSE_RATIO).saturating_sub(self.inner.len());
         self.inner.reserve(additional);
         while self.inner.len() / SPARSE_RATIO < idx_cap {
             self.inner.push(InterleavedGroup::blank());
@@ -55,15 +55,23 @@ impl<T> IDVStorage<T> {
 
     #[inline]
     unsafe fn find_free(&mut self) -> usize {
-        let mut i = 0;
-        while i < self.inner.len() {
+        let roundtrip_steps = self.inner.len();
+        let mut i = self.next_free_slot;
+
+        for _ in 0..roundtrip_steps {
+            if i == self.inner.len() {
+                i = 0;
+            }
+
             let e = self.inner.get_unchecked(i);
-            if let None = e.data {
+            if e.data.is_none() {
                 self.next_free_slot = i;
                 return i;
             }
+
             i += 1;
         }
+
         self.inner.push(InterleavedGroup::blank());
         self.next_free_slot = self.inner.len() - 1;
         self.next_free_slot
