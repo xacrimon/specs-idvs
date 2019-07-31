@@ -20,14 +20,14 @@ impl<T> InterleavedGroup<T> {
 
 pub struct IDVStorage<T> {
     inner: Vec<InterleavedGroup<T>>,
-    next_free_slot: usize,
+    free_slots: Vec<u16>,
 }
 
 impl<T> Default for IDVStorage<T> {
     fn default() -> Self {
         IDVStorage {
             inner: Vec::new(),
-            next_free_slot: 0,
+            free_slots: Vec::new(),
         }
     }
 }
@@ -50,31 +50,18 @@ impl<T> IDVStorage<T> {
         self.inner.reserve(additional);
         while self.inner.len() / SPARSE_RATIO < idx_cap {
             self.inner.push(InterleavedGroup::blank());
+            self.free_slots.push((self.inner.len() - 1) as u16);
         }
     }
 
     #[inline]
     unsafe fn find_free(&mut self) -> usize {
-        let roundtrip_steps = self.inner.len();
-        let mut i = self.next_free_slot;
-
-        for _ in 0..roundtrip_steps {
-            if i == self.inner.len() {
-                i = 0;
-            }
-
-            let e = self.inner.get_unchecked(i);
-            if e.data.is_none() {
-                self.next_free_slot = i;
-                return i;
-            }
-
-            i += 1;
+        if let Some(free_slot_idx) = self.free_slots.pop() {
+            free_slot_idx as usize
+        } else {
+            self.inner.push(InterleavedGroup::blank());
+            self.inner.len() - 1
         }
-
-        self.inner.push(InterleavedGroup::blank());
-        self.next_free_slot = self.inner.len() - 1;
-        self.next_free_slot
     }
 
     #[inline]
