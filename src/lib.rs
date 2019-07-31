@@ -46,11 +46,13 @@ impl<T> IDVStorage<T> {
 
     #[inline]
     unsafe fn check_prefill(&mut self, idx_cap: usize) {
-        let additional = (idx_cap / SPARSE_RATIO).saturating_sub(self.inner.len());
-        self.inner.reserve(additional);
-        while self.inner.len() / SPARSE_RATIO < idx_cap {
-            self.inner.push(InterleavedGroup::blank());
-            self.free_slots.push((self.inner.len() - 1) as u16);
+        if idx_cap / SPARSE_RATIO > self.inner.len() {
+            let additional = (idx_cap / SPARSE_RATIO).saturating_sub(self.inner.len());
+            self.inner.reserve(additional);
+            while self.inner.len() / SPARSE_RATIO < idx_cap {
+                self.inner.push(InterleavedGroup::blank());
+                self.free_slots.push((self.inner.len() - 1) as u16);
+            }
         }
     }
 
