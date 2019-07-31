@@ -55,12 +55,20 @@ impl<T> IDVStorage<T> {
     }
 
     #[inline]
+    fn expand(&mut self, amount: u16) {
+        for _ in 0..amount {
+            self.inner.push(InterleavedGroup::blank());
+            self.free_slots.push((self.inner.len() - 1) as u16);
+        }
+    }
+
+    #[inline]
     unsafe fn find_free(&mut self) -> usize {
         if let Some(free_slot_idx) = self.free_slots.pop() {
             free_slot_idx as usize
         } else {
-            self.inner.push(InterleavedGroup::blank());
-            self.inner.len() - 1
+            self.expand(8);
+            self.find_free()
         }
     }
 
