@@ -20,14 +20,14 @@ impl<T> InterleavedGroup<T> {
 
 pub struct IDVStorage<T> {
     inner: Vec<InterleavedGroup<T>>,
-    free_slots: Vec<u16>,
+    next_free_slot: usize,
 }
 
 impl<T> Default for IDVStorage<T> {
     fn default() -> Self {
         IDVStorage {
             inner: Vec::new(),
-            free_slots: Vec::new(),
+            next_free_slot: 0,
         }
     }
 }
@@ -46,34 +46,35 @@ impl<T> IDVStorage<T> {
 
     #[inline]
     unsafe fn check_prefill(&mut self, idx_cap: usize) {
-        if idx_cap / SPARSE_RATIO > self.inner.len() {
-            let additional = (idx_cap / SPARSE_RATIO).saturating_sub(self.inner.len());
-            if self.inner.capacity() < self.inner.len() + 8 {
-                self.inner.reserve(additional);
-            }
-            while self.inner.len() / SPARSE_RATIO < idx_cap {
-                self.inner.push(InterleavedGroup::blank());
-                self.free_slots.push((self.inner.len() - 1) as u16);
-            }
-        }
-    }
-
-    #[inline]
-    fn expand(&mut self, amount: u16) {
-        for _ in 0..amount {
+        let additional = (idx_cap / SPARSE_RATIO).saturating_sub(self.inner.len());
+        self.inner.reserve(additional);
+        while self.inner.len() / SPARSE_RATIO < idx_cap {
             self.inner.push(InterleavedGroup::blank());
-            self.free_slots.push((self.inner.len() - 1) as u16);
         }
     }
 
     #[inline]
     unsafe fn find_free(&mut self) -> usize {
-        if let Some(free_slot_idx) = self.free_slots.pop() {
-            free_slot_idx as usize
-        } else {
-            self.expand(8);
-            self.find_free()
+        let roundtrip_steps = self.inner.len();
+        let mut i = self.next_free_slot;
+
+        for _ in 0..roundtrip_steps {
+            if i == self.inner.len() {
+                i = 0;
+            }
+
+            let e = self.inner.get_unchecked(i);
+            if e.data.is_none() {
+                self.next_free_slot = i;
+                return i;
+            }
+
+            i += 1;
         }
+
+        self.inner.push(InterleavedGroup::blank());
+        self.next_free_slot = self.inner.len() - 1;
+        self.next_free_slot
     }
 
     #[inline]
