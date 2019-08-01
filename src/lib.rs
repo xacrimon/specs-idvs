@@ -5,7 +5,7 @@ use specs::world::Index;
 const SPARSE_RATIO: usize = 4;
 
 struct InterleavedGroup<T> {
-    redirects: [u16; SPARSE_RATIO],
+    redirects: [u32; SPARSE_RATIO],
     data: Option<T>,
 }
 
@@ -20,7 +20,7 @@ impl<T> InterleavedGroup<T> {
 
 pub struct IDVStorage<T> {
     inner: Vec<InterleavedGroup<T>>,
-    free_slots: Vec<u16>,
+    free_slots: Vec<u32>,
 }
 
 impl<T> Default for IDVStorage<T> {
@@ -34,7 +34,7 @@ impl<T> Default for IDVStorage<T> {
 
 impl<T> IDVStorage<T> {
     #[inline]
-    unsafe fn resolve_to_internal(&self, idx: usize) -> u16 {
+    unsafe fn resolve_to_internal(&self, idx: usize) -> u32 {
         let group_idx = idx / SPARSE_RATIO;
         let group_sub = idx % SPARSE_RATIO;
         *self
@@ -47,22 +47,14 @@ impl<T> IDVStorage<T> {
     #[inline]
     unsafe fn check_prefill(&mut self, idx_cap: usize) {
         if idx_cap / SPARSE_RATIO > self.inner.len() {
-            let additional = (idx_cap / SPARSE_RATIO).saturating_sub(self.inner.len());
+            let additional = (idx_cap / SPARSE_RATIO).saturating_sub(self.inner.len()) + 8;
             if self.inner.capacity() < self.inner.len() + 8 {
                 self.inner.reserve(additional);
             }
             while self.inner.len() / SPARSE_RATIO < idx_cap {
                 self.inner.push(InterleavedGroup::blank());
-                self.free_slots.push((self.inner.len() - 1) as u16);
+                self.free_slots.push((self.inner.len() - 1) as u32);
             }
-        }
-    }
-
-    #[inline]
-    fn expand(&mut self, amount: u16) {
-        for _ in 0..amount {
-            self.inner.push(InterleavedGroup::blank());
-            self.free_slots.push((self.inner.len() - 1) as u16);
         }
     }
 
@@ -71,8 +63,8 @@ impl<T> IDVStorage<T> {
         if let Some(free_slot_idx) = self.free_slots.pop() {
             free_slot_idx as usize
         } else {
-            self.expand(8);
-            self.find_free()
+            self.inner.push(InterleavedGroup::blank());
+            self.inner.len() - 1
         }
     }
 
@@ -86,7 +78,7 @@ impl<T> IDVStorage<T> {
             .inner
             .get_unchecked_mut(group_idx)
             .redirects
-            .get_unchecked_mut(group_sub) = internal_point as u16;
+            .get_unchecked_mut(group_sub) = internal_point as u32;
         self.inner.get_unchecked_mut(internal_point).data = Some(v);
     }
 
