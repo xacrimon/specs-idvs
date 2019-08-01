@@ -5,4 +5,5 @@ authors = ["Acrimon <joel.wejdenstal@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-specs = "0.15.0"
+specs = "0.14.2"
+hibitset = "0.5.2"

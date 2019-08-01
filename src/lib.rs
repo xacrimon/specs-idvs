@@ -1,4 +1,4 @@
-use specs::hibitset::BitSetLike;
+use hibitset::BitSetLike;
 use specs::storage::{DistinctStorage, UnprotectedStorage};
 use specs::world::Index;
 
