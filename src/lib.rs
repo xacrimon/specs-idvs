@@ -21,6 +21,7 @@ impl<T> InterleavedGroup<T> {
 pub struct IDVStorage<T> {
     inner: Vec<InterleavedGroup<T>>,
     next_free_slot: usize,
+    len: usize,
 }
 
 impl<T> Default for IDVStorage<T> {
@@ -28,11 +29,17 @@ impl<T> Default for IDVStorage<T> {
         IDVStorage {
             inner: Vec::new(),
             next_free_slot: 0,
+            len: 0,
         }
     }
 }
 
 impl<T> IDVStorage<T> {
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
     #[inline]
     unsafe fn resolve_to_internal(&self, idx: usize) -> u16 {
         let group_idx = idx / SPARSE_RATIO;
@@ -89,6 +96,7 @@ impl<T> IDVStorage<T> {
             .redirects
             .get_unchecked_mut(group_sub) = internal_point as u16;
         self.inner.get_unchecked_mut(internal_point).data = Some(v);
+        self.len += 1;
     }
 
     #[inline]
@@ -109,6 +117,7 @@ impl<T> IDVStorage<T> {
     #[inline]
     unsafe fn c_remove(&mut self, idx: usize) -> Option<T> {
         let internal = self.resolve_to_internal(idx);
+        self.len -= 1;
         self.inner.get_unchecked_mut(internal as usize).data.take()
     }
 
