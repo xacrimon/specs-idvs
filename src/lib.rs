@@ -18,15 +18,15 @@ impl<T> InterleavedGroup<T> {
     }
 }
 
-pub struct IDVStorage<T> {
+pub struct IdvStorage<T> {
     inner: Vec<InterleavedGroup<T>>,
     next_free_slot: usize,
     len: usize,
 }
 
-impl<T> Default for IDVStorage<T> {
+impl<T> Default for IdvStorage<T> {
     fn default() -> Self {
-        IDVStorage {
+        IdvStorage {
             inner: Vec::new(),
             next_free_slot: 0,
             len: 0,
@@ -34,7 +34,7 @@ impl<T> Default for IDVStorage<T> {
     }
 }
 
-impl<T> IDVStorage<T> {
+impl<T> IdvStorage<T> {
     #[inline]
     pub fn len(&self) -> usize {
         self.len
@@ -143,7 +143,7 @@ impl<T> IDVStorage<T> {
     }
 }
 
-impl<T> UnprotectedStorage<T> for IDVStorage<T> {
+impl<T> UnprotectedStorage<T> for IdvStorage<T> {
     #[inline]
     unsafe fn clean<B>(&mut self, has: B)
     where
@@ -173,4 +173,4 @@ impl<T> UnprotectedStorage<T> for IDVStorage<T> {
     }
 }
 
-unsafe impl<T> DistinctStorage for IDVStorage<T> {}
+unsafe impl<T> DistinctStorage for IdvStorage<T> {}
